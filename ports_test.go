@@ -46,18 +46,42 @@ func (n Negate) Output(Clk PosEdge) Logic {
 }
 
 func TestPorts(t *testing.T) {
-	var n Negate
-	m, err := GetModule(n)
+	var and And
+	mand, err := GetModule(and)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Name != "Negate" {
-		t.Fail()
+
+	var n Negate
+	mn, err := GetModule(n)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(m.Inputs) != 2 {
-		t.Fail()
+
+	var mux Mux2
+	muxn, err := GetModule(mux)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(m.Outputs) != 1 {
-		t.Fail()
+
+	tts := map[string]struct {
+		m                 Module
+		nInputs, nOutputs int
+	}{
+		"And":    {mand, 2, 1},
+		"Negate": {mn, 2, 1},
+		"Mux2":   {muxn, 3, 1},
+	}
+
+	for name, tt := range tts {
+		if tt.m.Name != name {
+			t.Fatal(name)
+		}
+		if len(tt.m.Inputs) != tt.nInputs {
+			t.Fatal(name)
+		}
+		if len(tt.m.Outputs) != tt.nOutputs {
+			t.Fatal(name)
+		}
 	}
 }
