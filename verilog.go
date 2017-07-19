@@ -2,13 +2,13 @@ package verilog
 
 import (
 	"errors"
-	"time"
 	"reflect"
+	"time"
 )
 
 var (
 	ErrMismatchingValueTypes = errors.New("mismatching types")
-	ErrTypeNotSupported = errors.New("type not supported")
+	ErrTypeNotSupported      = errors.New("type not supported")
 )
 
 type Logic byte
@@ -25,13 +25,13 @@ const (
 
 func LogicAnd(a, b Logic) Logic {
 	switch {
-        case a == 0 || b == 0:
-                return 0
-        case a == 1 && b == 1:
-                return 1
-        default:
-                 return X
-        }
+	case a == 0 || b == 0:
+		return 0
+	case a == 1 && b == 1:
+		return 1
+	default:
+		return X
+	}
 
 }
 
@@ -63,10 +63,10 @@ func (v *Vector) Size() (size int64) {
 }
 
 type Module struct {
-	Name string
+	Name            string
 	Inputs, Outputs map[string]int64
-	Signals map[string]int64
-	Delay time.Duration
+	Signals         map[string]int64
+	Delay           time.Duration
 }
 
 func sizeOfVType(t reflect.Type) int64 {
@@ -97,7 +97,7 @@ func GetModule(v interface{}) (m Module, err error) {
 	for i := 0; i < tp.NumMethod(); i++ {
 		method := tp.Method(i)
 		fnt := method.Func.Type()
-		if fnt.NumOut() != 1  {
+		if fnt.NumOut() != 1 {
 			panic(fnt)
 		}
 		outTypePtr := reflect.PtrTo(fnt.Out(0))
@@ -110,6 +110,3 @@ func GetModule(v interface{}) (m Module, err error) {
 
 	return
 }
-
-
-

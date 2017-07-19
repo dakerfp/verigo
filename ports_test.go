@@ -16,8 +16,8 @@ func (and And) Out() Logic {
 
 // +module
 type Mux2 struct {
-	A Logic
-	B Logic
+	A      Logic
+	B      Logic
 	Select Logic
 }
 
@@ -34,7 +34,7 @@ func (mux Mux2) Out() Logic {
 
 // +module
 type Negate struct {
-	Clk Logic
+	Clk   Logic
 	Input Logic
 }
 
@@ -61,8 +61,3 @@ func TestPorts(t *testing.T) {
 		t.Fail()
 	}
 }
-
-
-
-
-
