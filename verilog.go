@@ -11,57 +11,6 @@ var (
 	ErrTypeNotSupported      = errors.New("type not supported")
 )
 
-type Logic byte
-
-type PosEdge Logic
-type NegEdge Logic
-
-const (
-	Zero Logic = iota
-	One
-	X
-	Z
-)
-
-func LogicAnd(a, b Logic) Logic {
-	switch {
-	case a == 0 || b == 0:
-		return 0
-	case a == 1 && b == 1:
-		return 1
-	default:
-		return X
-	}
-
-}
-
-type Vector []Value
-
-type Value interface {
-	Size() int64
-}
-
-func (l *Logic) Set(v Value) (err error) {
-	switch v.(type) {
-	case *Logic:
-		*l = *v.(*Logic)
-	default:
-		err = ErrMismatchingValueTypes
-	}
-	return
-}
-
-func (l *Logic) Size() int64 {
-	return 0
-}
-
-func (v *Vector) Size() (size int64) {
-	for i := 0; i < len(*v); i++ {
-		size += (*v)[i].Size()
-	}
-	return
-}
-
 type Module struct {
 	Name            string
 	Inputs, Outputs map[string]int64
