@@ -11,6 +11,8 @@ const (
 	Z
 )
 
+var LogicValues = []Logic{0, 1, X, Z}
+
 type Vector []Value
 
 func LogicAnd(a, b Logic) Logic {
@@ -22,12 +24,16 @@ func LogicAnd(a, b Logic) Logic {
 	default:
 		return X
 	}
-
 }
 
 type Value interface {
 	Size() int64
 	Get() []Logic
+	Init()
+}
+
+func (l *Logic) Init() {
+	*l = X
 }
 
 func (l *Logic) Get() []Logic {
@@ -52,6 +58,12 @@ func (v *Vector) Size() (size int64) {
 		size += (*v)[i].Size()
 	}
 	return
+}
+
+func (v *Vector) Init() {
+	for i := 0; i < len(*v); i++ {
+		(*v)[i].Init()
+	}
 }
 
 func (vec *Vector) Get() (bits []Logic) {

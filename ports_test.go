@@ -39,10 +39,14 @@ type Negate struct {
 }
 
 func (n Negate) Output(Clk PosEdge) Logic {
-	if n.Input == 1 {
+	switch n.Input {
+	case 0:
+		return 1
+	case 1:
 		return 0
+	default:
+		return X
 	}
-	return 1
 }
 
 func TestPorts(t *testing.T) {
@@ -83,5 +87,34 @@ func TestPorts(t *testing.T) {
 		if len(tt.m.Outputs) != tt.nOutputs {
 			t.Fatal(name)
 		}
+	}
+}
+
+func TestTruthTable(t *testing.T) {
+	var and And
+	for _, a := range LogicValues {
+		for _, b := range LogicValues {
+			and.A = a
+			and.B = b
+			if and.Out() != LogicAnd(a, b) {
+				t.Fatal(a, b)
+			}
+		}
+	}
+}
+
+func TestInit(t *testing.T) {
+	var neg Negate
+	neg.Clk.Init()
+	neg.Input.Init()
+
+	if neg.Clk != X {
+		t.Fatal(neg.Clk)
+	}
+	if neg.Input != X {
+		t.Fatal(neg.Input)
+	}
+	if neg.Output(0) != X {
+		t.Fatal(neg.Input)
 	}
 }
