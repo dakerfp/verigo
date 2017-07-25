@@ -3,26 +3,9 @@ package sim
 import (
 	"sort"
 	"time"
+
+	"github.com/dakerfp/verigo/expr"
 )
-
-type Value interface {
-	True() bool
-	Update(Value) bool
-}
-
-type Bool bool
-
-func (b *Bool) True() bool {
-	return bool(*b)
-}
-
-func (b *Bool) Update(v Value) bool {
-	if b.True() == v.True() {
-		return false
-	}
-	*b = !*b
-	return true
-}
 
 type Sensivity int
 
@@ -40,20 +23,19 @@ type signal struct {
 }
 
 type node struct {
-	v      Value
+	v      expr.Var
 	listen []*signal
-	eval   func(Value, []*signal) Value
 	notify []*signal
 }
 
 type event struct {
 	sig *signal
-	nv  Value
+	nv  expr.Value
 	ts  time.Time
 }
 
-func (n *node) Poke(v Value, ts time.Time) event {
-	n.v = v
+func (n *node) Poke(v expr.Value, ts time.Time) event {
+	n.v.Update(v)
 	return event{
 		&signal{n, Anyedge, false},
 		v,
@@ -61,18 +43,8 @@ func (n *node) Poke(v Value, ts time.Time) event {
 	}
 }
 
-func (n *node) Eval() Value {
-	if n.eval != nil {
-		return n.eval(n.v, n.listen)
-	}
-	switch len(n.listen) {
-	case 0:
-		return n.v
-	case 1:
-		return n.listen[0].n.Eval()
-	default:
-		panic(n.listen)
-	}
+func (n *node) Eval() expr.Value {
+	return n.v.Eval()
 }
 
 func (n *node) Listen(s Sensivity, block bool) *signal {
@@ -81,12 +53,12 @@ func (n *node) Listen(s Sensivity, block bool) *signal {
 	return sig
 }
 
-func (n *node) deferUpdate(v Value, now time.Time, scheduler chan<- event) {
+func (n *node) deferUpdate(v expr.Value, now time.Time, scheduler chan<- event) {
 	if !n.v.Update(v) {
 		return
 	}
 	for _, sig := range n.notify {
-		posedge := n.v.True()
+		posedge := n.Eval().True()
 		switch sig.s {
 		case Noedge:
 			continue
@@ -99,7 +71,7 @@ func (n *node) deferUpdate(v Value, now time.Time, scheduler chan<- event) {
 				continue
 			}
 		}
-		scheduler <- event{sig, n.v, now} // XXX: Add delay
+		scheduler <- event{sig, n.Eval(), now} // XXX: Add delay
 	}
 }
 
@@ -109,7 +81,7 @@ func (n *node) update(now time.Time, scheduler chan<- event) {
 }
 
 func updateAllBlockedEvs(blocked []event, now time.Time, scheduler chan<- event) {
-	values := make([]Value, len(blocked))
+	values := make([]expr.Value, len(blocked))
 	// eval
 	for i, ev := range blocked {
 		values[i] = ev.sig.n.Eval()

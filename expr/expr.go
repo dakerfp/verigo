@@ -89,11 +89,19 @@ func (ife *IfExpr) Eval() Value {
 }
 
 type Var struct {
-	V Value
+	V Expr
+}
+
+func (vr *Var) Eval() Value {
+	return vr.V.Eval()
+}
+
+func (vr *Var) Valid() bool {
+	return vr.V != nil
 }
 
 func (vr *Var) Update(v Value) bool {
-	if vr.V.Eq(v) {
+	if vr.V != nil && vr.V.Eval().Eq(v) {
 		return false
 	}
 	vr.V = v
