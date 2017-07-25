@@ -90,3 +90,41 @@ func TestIf(t *testing.T) {
 		}
 	}
 }
+
+func TestWalk(t *testing.T) {
+	a := Bool(true)
+	b := Bool(false)
+	c := Bool(true)
+	d := Bool(false)
+
+	expr := Not(Or(And(&a, &b), And(&c, &d)))
+
+	count := 0
+	err := Walk(expr, func(e Expr, deps []Expr) error {
+		count++
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 8 {
+		t.Fatal(count)
+	}
+
+	// cyclic case
+	exprOr := Or(And(&a, &b), nil)
+	exprOr.Expr2 = exprOr
+
+	count = 0
+	err = Walk(exprOr, func(e Expr, deps []Expr) error {
+		count++
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Fatal(count)
+	}
+}
