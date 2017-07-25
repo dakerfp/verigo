@@ -83,7 +83,6 @@ func (n *node) deferUpdate(v expr.Value, now time.Time, sim *simulator) {
 				continue
 			}
 		}
-		fmt.Println(event{sig, now})
 		// XXX: Add delay
 		sim.putEvent(event{sig, now})
 	}
