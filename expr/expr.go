@@ -101,7 +101,7 @@ func (vr *Var) Valid() bool {
 }
 
 func (vr *Var) Update(v Value) bool {
-	if vr.V != nil && vr.V.Eval().Eq(v) {
+	if Eq(v, vr.V.Eval()) {
 		return false
 	}
 	vr.V = v
