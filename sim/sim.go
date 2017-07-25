@@ -17,17 +17,32 @@ const (
 	Negedge
 )
 
-type signal struct {
-	n     *node
-	s     Sensivity
-	block bool
-}
-
-type node struct {
+type Node struct {
 	e      expr.Expr
 	v      expr.Value
 	listen []*signal
 	notify []*signal
+}
+
+func NewNode(e expr.Expr, listen ...*signal) *Node {
+	n := &Node{e: e, v: e.Eval(), listen: listen, notify: nil}
+	for _, sig := range listen {
+		sig.n = n
+	}
+	return n
+}
+
+func (n *Node) Eval() expr.Value {
+	if n.v == nil {
+		n.v = n.e.Eval()
+	}
+	return n.v
+}
+
+type signal struct {
+	n     *Node
+	s     Sensivity
+	block bool
 }
 
 type event struct {
@@ -35,22 +50,7 @@ type event struct {
 	ts  time.Time
 }
 
-func NewNode(e expr.Expr, listen ...*signal) *node {
-	n := &node{e: e, v: e.Eval(), listen: listen, notify: nil}
-	for _, sig := range listen {
-		sig.n = n
-	}
-	return n
-}
-
-func (n *node) Eval() expr.Value {
-	if n.v == nil {
-		n.v = n.e.Eval()
-	}
-	return n.v
-}
-
-func (n *node) poke(v expr.Value, ts time.Time) event {
+func updateNodeEvent(n *Node, v expr.Value, ts time.Time) event {
 	n.e = v
 	return event{
 		&signal{n, Anyedge, false},
@@ -58,13 +58,13 @@ func (n *node) poke(v expr.Value, ts time.Time) event {
 	}
 }
 
-func Listen(n *node, s Sensivity, block bool) *signal {
+func Listen(n *Node, s Sensivity, block bool) *signal {
 	sig := &signal{nil, s, block}
 	n.notify = append(n.notify, sig)
 	return sig
 }
 
-func (n *node) deferUpdate(v expr.Value, now time.Time, sim *simulator) {
+func deferUpdate(n *Node, v expr.Value, now time.Time, sim *simulator) {
 	if expr.Eq(n.v, v) {
 		return
 	}
@@ -88,8 +88,8 @@ func (n *node) deferUpdate(v expr.Value, now time.Time, sim *simulator) {
 	}
 }
 
-func (n *node) update(now time.Time, sim *simulator) {
-	n.deferUpdate(n.e.Eval(), now, sim)
+func update(n *Node, now time.Time, sim *simulator) {
+	deferUpdate(n, n.e.Eval(), now, sim)
 }
 
 type simulator struct {
@@ -130,8 +130,8 @@ func (sim *simulator) Run() {
 	}
 }
 
-func (sim *simulator) Set(n *node, v expr.Value, ts time.Time) {
-	sim.scheduler <- n.poke(v, ts)
+func (sim *simulator) Set(n *Node, v expr.Value, ts time.Time) {
+	sim.scheduler <- updateNodeEvent(n, v, ts)
 }
 
 func (sim *simulator) executeAny() (any bool) {
@@ -167,7 +167,7 @@ func (sim *simulator) executeEvent() {
 		sim.blocked = append(sim.blocked, ev)
 	} else {
 		// execute now
-		ev.sig.n.update(sim.now, sim)
+		update(ev.sig.n, sim.now, sim)
 	}
 }
 
@@ -179,7 +179,7 @@ func (sim *simulator) updateAllBlockedEvents() {
 	}
 	// update values and schedule next evs
 	for i, ev := range sim.blocked {
-		ev.sig.n.deferUpdate(values[i], sim.now, sim)
+		deferUpdate(ev.sig.n, values[i], sim.now, sim)
 	}
 }
 
