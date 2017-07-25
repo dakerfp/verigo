@@ -10,10 +10,10 @@ import (
 
 func TestSim(t *testing.T) {
 	// build nodes
-	a := NewNode(&expr.False)
-	b := NewNode(&expr.False)
-	c := NewNode(&expr.False)
-	d := NewNode(&expr.False)
+	a := NewNode(expr.F)
+	b := NewNode(expr.F)
+	c := NewNode(expr.F)
+	d := NewNode(expr.F)
 
 	ab := NewNode(expr.And(&a, &b),
 		a.Listen(Anyedge, false),

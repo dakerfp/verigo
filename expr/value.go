@@ -47,6 +47,11 @@ var (
 	False = Bool(false)
 )
 
+var (
+	T = &True
+	F = &False
+)
+
 type Vector struct {
 	value uint64
 	width uint
