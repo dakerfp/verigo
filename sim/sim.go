@@ -2,6 +2,7 @@ package sim
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/dakerfp/verigo/expr"
@@ -83,64 +84,77 @@ func (n *node) update(now time.Time, scheduler chan<- event) {
 	n.deferUpdate(v, now, scheduler)
 }
 
-func updateAllBlockedEvs(blocked []event, now time.Time, scheduler chan<- event) {
-	values := make([]expr.Value, len(blocked))
-	// eval
-	for i, ev := range blocked {
-		values[i] = ev.sig.n.Eval()
-	}
-	// update values and schedule next evs
-	for i, ev := range blocked {
-		ev.sig.n.deferUpdate(values[i], now, scheduler)
-	}
+type simulator struct {
+	eventPool []event
+	blocked   []event
+	now       time.Time
 }
 
-func run(startTime time.Time, scheduler chan event) {
-	var eventPool []event
-	var blocked []event
-	now := startTime
+func run(wg *sync.WaitGroup, startTime time.Time, scheduler chan event) {
+	defer wg.Done()
+	var sim simulator
+	sim.now = startTime
 	for {
 		select {
 		case ev, ok := <-scheduler:
 			if !ok {
 				return
 			}
-
-			// sort by ts and then, leave blocking later
-			eventPool = append(eventPool, ev)
-			sort.Slice(eventPool, func(i, j int) bool {
-				ei := eventPool[i]
-				ej := eventPool[j]
-				if ei.ts.Before(ej.ts) {
-					return true
-				} else if ei.ts.After(ej.ts) {
-					return false
-				}
-				return !ei.sig.block
-			})
+			sim.putEvent(ev)
 
 		default:
-			if len(eventPool) != 0 {
-				return
+			if len(sim.eventPool) == 0 {
+				continue
 			}
-			ev := eventPool[0]
-			eventPool = eventPool[1:]
-
-			if ev.ts.Before(now) {
-				panic("ev.ts should never be before now")
-			}
-
-			if ev.ts.After(now) {
-				updateAllBlockedEvs(blocked, now, scheduler)
-				blocked = nil
-				now = ev.ts // step simulation time
-			}
-
-			if ev.sig.block {
-				blocked = append(blocked, ev)
-			} else {
-				ev.sig.n.update(now, scheduler)
-			}
+			sim.executeEvents(scheduler)
 		}
 	}
+}
+
+func (sim *simulator) executeEvents(scheduler chan event) {
+	ev := sim.eventPool[0]
+	sim.eventPool = sim.eventPool[1:]
+
+	if ev.ts.Before(sim.now) {
+		panic("ev.ts should never be before now")
+	}
+
+	if ev.ts.After(sim.now) {
+		sim.updateAllBlockedEvs(scheduler)
+		sim.blocked = nil
+		sim.now = ev.ts // step simulation time
+	}
+
+	if ev.sig.block {
+		sim.blocked = append(sim.blocked, ev)
+	} else {
+		ev.sig.n.update(sim.now, scheduler)
+	}
+}
+
+func (sim *simulator) updateAllBlockedEvs(scheduler chan<- event) {
+	values := make([]expr.Value, len(sim.blocked))
+	// eval
+	for i, ev := range sim.blocked {
+		values[i] = ev.sig.n.Eval()
+	}
+	// update values and schedule next evs
+	for i, ev := range sim.blocked {
+		ev.sig.n.deferUpdate(values[i], sim.now, scheduler)
+	}
+}
+
+func (sim *simulator) putEvent(ev event) {
+	// sort by ts and then, leave blocking later
+	sim.eventPool = append(sim.eventPool, ev)
+	sort.Slice(sim.eventPool, func(i, j int) bool {
+		ei := sim.eventPool[i]
+		ej := sim.eventPool[j]
+		if ei.ts.Before(ej.ts) {
+			return true
+		} else if ei.ts.After(ej.ts) {
+			return false
+		}
+		return !ei.sig.block
+	})
 }

@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -29,16 +30,21 @@ func TestSim(t *testing.T) {
 		cd.Listen(Anyedge, false),
 	)
 
+	if o.Eval().True() {
+		t.Fatal(o.Eval())
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	now := time.Now()
 	evs := make(chan event, 4)
+	go run(&wg, now, evs)
 	evs <- a.Poke(&expr.True, now)
 	evs <- b.Poke(&expr.True, now)
 	evs <- c.Poke(&expr.True, now)
 	evs <- d.Poke(&expr.True, now)
-	go run(now, evs)
-
-	time.Sleep(time.Second)
 	close(evs)
+	wg.Wait()
 
 	if !o.Eval().True() {
 		t.Fatal(o.Eval())
