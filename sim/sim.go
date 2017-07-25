@@ -153,7 +153,7 @@ func (sim *simulator) executeEvent() {
 	sim.eventPool = sim.eventPool[1:]
 
 	if ev.ts.Before(sim.now) {
-		panic("ev.ts should never be before now")
+		panic(fmt.Errorf("ev.ts %v should never be before %v", ev.ts, sim.now))
 	}
 
 	if ev.ts.After(sim.now) {

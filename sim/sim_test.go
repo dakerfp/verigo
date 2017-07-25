@@ -94,4 +94,20 @@ func TestClk(t *testing.T) {
 	if na.Eval().True() {
 		t.Fatal(na.Eval())
 	}
+
+	sim = NewSim()
+	go func() {
+		sim.Set(a, expr.T, now)
+		sim.Set(clk, expr.F, now)
+		sim.Set(clk, expr.T, now.Add(1)) // trigger a <- true
+		// should not trigger a <- false
+		sim.Set(a, expr.F, now.Add(2))
+		sim.Set(clk, expr.F, now.Add(3))
+		sim.End()
+	}()
+	sim.Run()
+
+	if na.Eval().True() {
+		t.Fatal(na.Eval())
+	}
 }
