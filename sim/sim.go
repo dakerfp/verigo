@@ -23,7 +23,7 @@ type signal struct {
 }
 
 type node struct {
-	v      expr.Var
+	expr.Var
 	listen []*signal
 	notify []*signal
 }
@@ -34,17 +34,20 @@ type event struct {
 	ts  time.Time
 }
 
+func NewNode(e expr.Expr, listen ...*signal) node {
+	var n node
+	n.V = e
+	n.listen = listen
+	return n
+}
+
 func (n *node) Poke(v expr.Value, ts time.Time) event {
-	n.v.Update(v)
+	n.Update(v)
 	return event{
 		&signal{n, Anyedge, false},
 		v,
 		ts,
 	}
-}
-
-func (n *node) Eval() expr.Value {
-	return n.v.Eval()
 }
 
 func (n *node) Listen(s Sensivity, block bool) *signal {
@@ -54,7 +57,7 @@ func (n *node) Listen(s Sensivity, block bool) *signal {
 }
 
 func (n *node) deferUpdate(v expr.Value, now time.Time, scheduler chan<- event) {
-	if !n.v.Update(v) {
+	if !n.Update(v) {
 		return
 	}
 	for _, sig := range n.notify {

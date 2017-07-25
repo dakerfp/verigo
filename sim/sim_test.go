@@ -7,65 +7,40 @@ import (
 	"github.com/dakerfp/verigo/expr"
 )
 
-func evalAnd(v expr.Value, sigs []*signal) expr.Value {
-	a := sigs[0].n.Eval().True()
-	b := sigs[1].n.Eval().True()
-	no := new(expr.Bool)
-	*no = expr.Bool(a && b)
-	return no
-}
-
 func TestSim(t *testing.T) {
-	a := expr.Var{&expr.False}
-	b := expr.Var{&expr.False}
-	c := expr.Var{&expr.False}
-	d := expr.Var{&expr.False}
-	ab := expr.Var{expr.And(&a, &b)}
-	cd := expr.Var{expr.And(&c, &d)}
-	o := expr.Var{expr.And(&ab, &cd)}
-
 	// build nodes
-	na := node{v: a}
-	nb := node{v: b}
-	nc := node{v: c}
-	nd := node{v: d}
+	a := NewNode(&expr.False)
+	b := NewNode(&expr.False)
+	c := NewNode(&expr.False)
+	d := NewNode(&expr.False)
 
-	nab := node{
-		v: ab,
-		listen: []*signal{
-			na.Listen(Anyedge, false),
-			nb.Listen(Anyedge, false),
-		},
-	}
+	ab := NewNode(expr.And(&a, &b),
+		a.Listen(Anyedge, false),
+		b.Listen(Anyedge, false),
+	)
 
-	ncd := node{
-		v: cd,
-		listen: []*signal{
-			nc.Listen(Anyedge, false),
-			nd.Listen(Anyedge, false),
-		},
-	}
+	cd := NewNode(expr.And(&c, &d),
+		c.Listen(Anyedge, false),
+		d.Listen(Anyedge, false),
+	)
 
-	no := node{
-		v: o,
-		listen: []*signal{
-			nab.Listen(Anyedge, false),
-			ncd.Listen(Anyedge, false),
-		},
-	}
+	o := NewNode(expr.And(&ab, &cd),
+		ab.Listen(Anyedge, false),
+		cd.Listen(Anyedge, false),
+	)
 
 	now := time.Now()
 	evs := make(chan event, 4)
-	evs <- na.Poke(&expr.True, now)
-	evs <- nb.Poke(&expr.True, now)
-	evs <- nc.Poke(&expr.True, now)
-	evs <- nd.Poke(&expr.True, now)
+	evs <- a.Poke(&expr.True, now)
+	evs <- b.Poke(&expr.True, now)
+	evs <- c.Poke(&expr.True, now)
+	evs <- d.Poke(&expr.True, now)
 	go run(now, evs)
 
 	time.Sleep(time.Second)
 	close(evs)
 
-	if !no.Eval().True() {
-		t.Fatal(no.Eval())
+	if !o.Eval().True() {
+		t.Fatal(o.Eval())
 	}
 }
