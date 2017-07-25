@@ -4,7 +4,8 @@ type Value interface {
 	Expr
 	True() bool
 	Eq(v Value) bool
-	Width() int
+	Width() uint
+	Uint() uint64
 }
 
 type Bool bool
@@ -21,8 +22,16 @@ func (b *Bool) Eq(v Value) bool {
 	return bool(*b) == v.True()
 }
 
-func (b *Bool) Width() int {
+func (b *Bool) Width() uint {
 	return 1
+}
+
+func (b *Bool) Uint() uint64 {
+	if bool(*b) {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func boolValue(b bool) *Bool {
@@ -40,7 +49,7 @@ var (
 
 type Vector struct {
 	value uint64
-	width int
+	width uint
 }
 
 func (vec *Vector) Slice(from, to int) {
@@ -69,6 +78,10 @@ func (vec *Vector) Eq(v Value) bool {
 	return false
 }
 
-func (vec *Vector) Width() int {
+func (vec *Vector) Width() uint {
 	return vec.width
+}
+
+func (vec *Vector) Uint() uint64 {
+	return vec.value
 }
