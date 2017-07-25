@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -23,45 +24,53 @@ type signal struct {
 }
 
 type node struct {
-	expr.Var
+	e      expr.Expr
+	v      expr.Value
 	listen []*signal
 	notify []*signal
 }
 
 type event struct {
 	sig *signal
-	nv  expr.Value
 	ts  time.Time
 }
 
-func NewNode(e expr.Expr, listen ...*signal) node {
-	var n node
-	n.V = e
-	n.listen = listen
+func NewNode(e expr.Expr, listen ...*signal) *node {
+	n := &node{e: e, v: e.Eval(), listen: listen, notify: nil}
+	for _, sig := range listen {
+		sig.n = n
+	}
 	return n
 }
 
+func (n *node) Eval() expr.Value {
+	if n.v == nil {
+		n.v = n.e.Eval()
+	}
+	return n.v
+}
+
 func (n *node) poke(v expr.Value, ts time.Time) event {
-	n.Update(v)
+	n.e = v
 	return event{
 		&signal{n, Anyedge, false},
-		v,
 		ts,
 	}
 }
 
-func (n *node) Listen(s Sensivity, block bool) *signal {
-	sig := &signal{n, s, block}
+func Listen(n *node, s Sensivity, block bool) *signal {
+	sig := &signal{nil, s, block}
 	n.notify = append(n.notify, sig)
 	return sig
 }
 
 func (n *node) deferUpdate(v expr.Value, now time.Time, sim *simulator) {
-	if !n.Update(v) {
+	if expr.Eq(n.v, v) {
 		return
 	}
+	n.v = v
 	for _, sig := range n.notify {
-		posedge := n.Eval().True()
+		posedge := v.True()
 		switch sig.s {
 		case Noedge:
 			continue
@@ -74,14 +83,14 @@ func (n *node) deferUpdate(v expr.Value, now time.Time, sim *simulator) {
 				continue
 			}
 		}
+		fmt.Println(event{sig, now})
 		// XXX: Add delay
-		sim.putEvent(event{sig, n.Eval(), now})
+		sim.putEvent(event{sig, now})
 	}
 }
 
 func (n *node) update(now time.Time, sim *simulator) {
-	v := n.Eval()
-	n.deferUpdate(v, now, sim)
+	n.deferUpdate(n.e.Eval(), now, sim)
 }
 
 type simulator struct {
@@ -89,34 +98,37 @@ type simulator struct {
 	blocked   []event
 	now       time.Time
 	scheduler chan event
-	wait      chan bool
-	stop      bool
+}
+
+func NewSim() *simulator { // XXX
+	return &simulator{
+		scheduler: make(chan event),
+	}
+}
+
+func (sim *simulator) End() {
+	sim.scheduler <- event{nil, sim.now}
 }
 
 func (sim *simulator) Run() {
-	sim.scheduler = make(chan event, 3)
-	sim.wait = make(chan bool)
 	for {
 		select {
 		case ev, ok := <-sim.scheduler:
-			if ok {
-				sim.putEvent(ev)
+			if !ok {
+				panic("should not close this channel")
+			}
+			if ev.sig != nil {
+				sim.putEvent(ev) // is a valid event
 				continue
 			}
 			for sim.executeAny() {
 				// execute until has no event left
 			}
-			sim.wait <- true
 			return
 		default:
 			sim.executeAny()
 		}
 	}
-}
-
-func (sim *simulator) Wait() {
-	close(sim.scheduler) // tell run to stop
-	<-sim.wait           // wait run until is finished
 }
 
 func (sim *simulator) Set(n *node, v expr.Value, ts time.Time) {
@@ -164,7 +176,7 @@ func (sim *simulator) updateAllBlockedEvents() {
 	values := make([]expr.Value, len(sim.blocked))
 	// eval
 	for i, ev := range sim.blocked {
-		values[i] = ev.sig.n.Eval()
+		values[i] = ev.sig.n.e.Eval()
 	}
 	// update values and schedule next evs
 	for i, ev := range sim.blocked {

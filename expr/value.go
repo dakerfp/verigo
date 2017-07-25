@@ -19,7 +19,7 @@ func (b *Bool) True() bool {
 }
 
 func (b *Bool) Eq(v Value) bool {
-	return bool(*b) == v.True()
+	return b.True() == v.True()
 }
 
 func (b *Bool) Width() uint {

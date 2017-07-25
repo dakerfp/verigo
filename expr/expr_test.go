@@ -6,6 +6,10 @@ func TestUnary(t *testing.T) {
 	a := Bool(true)
 	b := Bool(false)
 
+	if b.True() {
+		t.Fail()
+	}
+
 	if !a.True() {
 		t.Fail()
 	}
@@ -18,6 +22,24 @@ func TestUnary(t *testing.T) {
 	notB := Not(&b)
 	if !notB.Eval().True() {
 		t.Fail()
+	}
+}
+
+func TestEq(t *testing.T) {
+	if !Eq(T, T) {
+		t.Fatal()
+	}
+
+	if !Eq(F, F) {
+		t.Fatal()
+	}
+
+	if Eq(T, F) {
+		t.Fatal()
+	}
+
+	if Eq(F, T) {
+		t.Fatal()
 	}
 }
 

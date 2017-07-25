@@ -5,11 +5,13 @@ type Expr interface {
 }
 
 func Eq(vl, vr Value) bool {
+	if vl == nil || vr == nil {
+		return false
+	}
 	if vl.Width() >= vr.Width() {
 		return vl.Eq(vr)
-	} else {
-		return vr.Eq(vl)
 	}
+	return vr.Eq(vl)
 }
 
 type UnaryExpr struct {
@@ -86,24 +88,4 @@ func (ife *IfExpr) Eval() Value {
 	} else {
 		return ife.Else.Eval()
 	}
-}
-
-type Var struct {
-	V Expr
-}
-
-func (vr *Var) Eval() Value {
-	return vr.V.Eval()
-}
-
-func (vr *Var) Valid() bool {
-	return vr.V != nil
-}
-
-func (vr *Var) Update(v Value) bool {
-	if Eq(v, vr.V.Eval()) {
-		return false
-	}
-	vr.V = v
-	return true
 }
