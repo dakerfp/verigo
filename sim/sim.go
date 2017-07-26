@@ -11,10 +11,13 @@ import (
 type Sensivity int
 
 const (
-	Noedge Sensivity = iota
+	Noedge Sensivity = 1 << iota
 	Anyedge
 	Posedge
 	Negedge
+	Block
+
+	NoBlock = ^Block
 )
 
 type Node struct {
@@ -35,16 +38,19 @@ func (n *Node) Eval() expr.Value {
 	return n.v
 }
 
-func Connect(a *Node, b *Node, s Sensivity, block bool) {
-	sig := listen(a, s, block)
+func Connect(a *Node, b *Node, s Sensivity) {
+	sig := listen(a, s)
 	sig.n = b
 	b.listen = append(b.listen, sig)
 }
 
 type signal struct {
-	n     *Node
-	s     Sensivity
-	block bool
+	n *Node
+	s Sensivity
+}
+
+func (sig *signal) block() bool {
+	return sig.s&Block != 0
 }
 
 type event struct {
@@ -52,8 +58,8 @@ type event struct {
 	ts  time.Time
 }
 
-func listen(n *Node, s Sensivity, block bool) *signal {
-	sig := &signal{nil, s, block}
+func listen(n *Node, s Sensivity) *signal {
+	sig := &signal{nil, s}
 	n.notify = append(n.notify, sig)
 	return sig
 }
@@ -61,7 +67,7 @@ func listen(n *Node, s Sensivity, block bool) *signal {
 func updateNodeEvent(n *Node, v expr.Value, ts time.Time) event {
 	n.e = v
 	return event{
-		&signal{n, Anyedge, false},
+		&signal{n, Anyedge},
 		ts,
 	}
 }
@@ -115,7 +121,7 @@ func (sim *Simulator) updateNodeValue(n *Node, v expr.Value) {
 	n.v = v
 	for _, sig := range n.notify {
 		posedge := v.True()
-		switch sig.s {
+		switch sig.s & NoBlock {
 		case Noedge:
 			continue
 		case Posedge:
@@ -162,7 +168,7 @@ func (sim *Simulator) handleNextEvent() {
 		sim.now = ev.ts // step simulation time
 	}
 
-	if ev.sig.block {
+	if ev.sig.block() {
 		// append event in blocked queue
 		sim.blocked = append(sim.blocked, ev)
 	} else {
@@ -195,6 +201,6 @@ func (sim *Simulator) putEvent(ev event) {
 		} else if ei.ts.After(ej.ts) {
 			return false
 		}
-		return !ei.sig.block
+		return !ei.sig.block()
 	})
 }

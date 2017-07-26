@@ -23,18 +23,18 @@ func TestComb(t *testing.T) {
 	d := newNode(expr.F)
 
 	ab := newNode(expr.And(a, b),
-		listen(a, Anyedge, false),
-		listen(b, Anyedge, false),
+		listen(a, Anyedge),
+		listen(b, Anyedge),
 	)
 
 	cd := newNode(expr.And(c, d),
-		listen(c, Anyedge, false),
-		listen(d, Anyedge, false),
+		listen(c, Anyedge),
+		listen(d, Anyedge),
 	)
 
 	o := newNode(expr.And(ab, cd),
-		listen(ab, Anyedge, false),
-		listen(cd, Anyedge, false),
+		listen(ab, Anyedge),
+		listen(cd, Anyedge),
 	)
 
 	if o.Eval().True() {
@@ -72,7 +72,7 @@ func TestClk(t *testing.T) {
 	clk := newNode(expr.F)
 	a := newNode(expr.F)
 	na := newNode(expr.Not(a),
-		listen(clk, Posedge, false), // only on clock trigger
+		listen(clk, Posedge), // only on clock trigger
 	)
 
 	if !na.Eval().True() {
