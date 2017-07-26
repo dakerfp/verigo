@@ -7,33 +7,41 @@ import (
 	"github.com/dakerfp/verigo/expr"
 )
 
+func newNode(e expr.Expr, listen ...*signal) *Node {
+	n := &Node{e: e, v: e.Eval(), listen: listen, notify: nil}
+	for _, sig := range listen {
+		sig.n = n
+	}
+	return n
+}
+
 func TestComb(t *testing.T) {
 	// build nodes
-	a := NewNode(expr.F)
-	b := NewNode(expr.F)
-	c := NewNode(expr.F)
-	d := NewNode(expr.F)
+	a := newNode(expr.F)
+	b := newNode(expr.F)
+	c := newNode(expr.F)
+	d := newNode(expr.F)
 
-	ab := NewNode(expr.And(a, b),
-		Listen(a, Anyedge, false),
-		Listen(b, Anyedge, false),
+	ab := newNode(expr.And(a, b),
+		listen(a, Anyedge, false),
+		listen(b, Anyedge, false),
 	)
 
-	cd := NewNode(expr.And(c, d),
-		Listen(c, Anyedge, false),
-		Listen(d, Anyedge, false),
+	cd := newNode(expr.And(c, d),
+		listen(c, Anyedge, false),
+		listen(d, Anyedge, false),
 	)
 
-	o := NewNode(expr.And(ab, cd),
-		Listen(ab, Anyedge, false),
-		Listen(cd, Anyedge, false),
+	o := newNode(expr.And(ab, cd),
+		listen(ab, Anyedge, false),
+		listen(cd, Anyedge, false),
 	)
 
 	if o.Eval().True() {
 		t.Fatal(o.Eval())
 	}
 
-	sim := NewSim()
+	sim := NewSimulator()
 	go func() {
 		now := time.Now()
 		sim.Set(a, expr.T, now)
@@ -61,10 +69,10 @@ func TestClk(t *testing.T) {
 	// build nodes
 	// always_ff @(posedge clk)
 	//     na <= ~a;
-	clk := NewNode(expr.F)
-	a := NewNode(expr.F)
-	na := NewNode(expr.Not(a),
-		Listen(clk, Posedge, false), // only on clock trigger
+	clk := newNode(expr.F)
+	a := newNode(expr.F)
+	na := newNode(expr.Not(a),
+		listen(clk, Posedge, false), // only on clock trigger
 	)
 
 	if !na.Eval().True() {
@@ -73,7 +81,7 @@ func TestClk(t *testing.T) {
 
 	now := time.Now()
 
-	sim := NewSim()
+	sim := NewSimulator()
 	go func() {
 		sim.Set(a, expr.T, now)
 		sim.End()
@@ -84,7 +92,7 @@ func TestClk(t *testing.T) {
 		t.Fatal(na.Eval())
 	}
 
-	sim = NewSim()
+	sim = NewSimulator()
 	go func() {
 		sim.Set(clk, expr.T, now)
 		sim.End()
@@ -95,7 +103,7 @@ func TestClk(t *testing.T) {
 		t.Fatal(na.Eval())
 	}
 
-	sim = NewSim()
+	sim = NewSimulator()
 	go func() {
 		sim.Set(a, expr.T, now)
 		sim.Set(clk, expr.F, now)

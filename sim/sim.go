@@ -24,12 +24,8 @@ type Node struct {
 	notify []*signal
 }
 
-func NewNode(e expr.Expr, listen ...*signal) *Node {
-	n := &Node{e: e, v: e.Eval(), listen: listen, notify: nil}
-	for _, sig := range listen {
-		sig.n = n
-	}
-	return n
+func NewNode(e expr.Expr) *Node {
+	return &Node{e: e, v: e.Eval()}
 }
 
 func (n *Node) Eval() expr.Value {
@@ -37,6 +33,12 @@ func (n *Node) Eval() expr.Value {
 		n.v = n.e.Eval()
 	}
 	return n.v
+}
+
+func Connect(a *Node, b *Node, s Sensivity, block bool) {
+	sig := listen(a, s, block)
+	sig.n = b
+	b.listen = append(b.listen, sig)
 }
 
 type signal struct {
@@ -50,6 +52,12 @@ type event struct {
 	ts  time.Time
 }
 
+func listen(n *Node, s Sensivity, block bool) *signal {
+	sig := &signal{nil, s, block}
+	n.notify = append(n.notify, sig)
+	return sig
+}
+
 func updateNodeEvent(n *Node, v expr.Value, ts time.Time) event {
 	n.e = v
 	return event{
@@ -58,13 +66,49 @@ func updateNodeEvent(n *Node, v expr.Value, ts time.Time) event {
 	}
 }
 
-func Listen(n *Node, s Sensivity, block bool) *signal {
-	sig := &signal{nil, s, block}
-	n.notify = append(n.notify, sig)
-	return sig
+type Simulator struct {
+	eventPool []event
+	blocked   []event
+	now       time.Time
+	scheduler chan event
 }
 
-func deferUpdate(n *Node, v expr.Value, now time.Time, sim *simulator) {
+func NewSimulator() *Simulator {
+	return &Simulator{
+		scheduler: make(chan event),
+	}
+}
+
+func (sim *Simulator) End() {
+	sim.scheduler <- event{nil, sim.now}
+}
+
+func (sim *Simulator) Run() {
+	for {
+		select {
+		case ev, ok := <-sim.scheduler:
+			if !ok {
+				panic("should not close this channel")
+			}
+			if ev.sig != nil {
+				sim.putEvent(ev) // is a valid event
+				continue
+			}
+			for sim.handleAnyEvent() {
+				// execute until has no event left
+			}
+			return
+		default:
+			sim.handleAnyEvent()
+		}
+	}
+}
+
+func (sim *Simulator) Set(n *Node, v expr.Value, ts time.Time) {
+	sim.scheduler <- updateNodeEvent(n, v, ts)
+}
+
+func (sim *Simulator) updateNodeValue(n *Node, v expr.Value) {
 	if expr.Eq(n.v, v) {
 		return
 	}
@@ -82,72 +126,28 @@ func deferUpdate(n *Node, v expr.Value, now time.Time, sim *simulator) {
 			if posedge {
 				continue
 			}
+		case Anyedge:
+			// just proceeed
 		}
 		// XXX: Add delay
-		sim.putEvent(event{sig, now})
+		sim.putEvent(event{sig, sim.now})
 	}
 }
 
-func update(n *Node, now time.Time, sim *simulator) {
-	deferUpdate(n, n.e.Eval(), now, sim)
-}
-
-type simulator struct {
-	eventPool []event
-	blocked   []event
-	now       time.Time
-	scheduler chan event
-}
-
-func NewSim() *simulator { // XXX
-	return &simulator{
-		scheduler: make(chan event),
-	}
-}
-
-func (sim *simulator) End() {
-	sim.scheduler <- event{nil, sim.now}
-}
-
-func (sim *simulator) Run() {
-	for {
-		select {
-		case ev, ok := <-sim.scheduler:
-			if !ok {
-				panic("should not close this channel")
-			}
-			if ev.sig != nil {
-				sim.putEvent(ev) // is a valid event
-				continue
-			}
-			for sim.executeAny() {
-				// execute until has no event left
-			}
-			return
-		default:
-			sim.executeAny()
-		}
-	}
-}
-
-func (sim *simulator) Set(n *Node, v expr.Value, ts time.Time) {
-	sim.scheduler <- updateNodeEvent(n, v, ts)
-}
-
-func (sim *simulator) executeAny() (any bool) {
+func (sim *Simulator) handleAnyEvent() (any bool) {
 	switch {
 	case len(sim.eventPool) > 0:
-		sim.executeEvent()
+		sim.handleNextEvent()
 		any = true
 	case len(sim.blocked) > 0:
-		sim.updateAllBlockedEvents()
+		sim.handleBlockedEvents()
 		any = true
 	default:
 	}
 	return
 }
 
-func (sim *simulator) executeEvent() {
+func (sim *Simulator) handleNextEvent() {
 	ev := sim.eventPool[0]
 	sim.eventPool = sim.eventPool[1:]
 
@@ -156,8 +156,8 @@ func (sim *simulator) executeEvent() {
 	}
 
 	if ev.ts.After(sim.now) {
-		// ensure all blocked events execute before
-		sim.updateAllBlockedEvents()
+		// ensure all blocked events are handled before
+		sim.handleBlockedEvents()
 		sim.blocked = nil
 		sim.now = ev.ts // step simulation time
 	}
@@ -167,11 +167,12 @@ func (sim *simulator) executeEvent() {
 		sim.blocked = append(sim.blocked, ev)
 	} else {
 		// execute now
-		update(ev.sig.n, sim.now, sim)
+		n := ev.sig.n
+		sim.updateNodeValue(n, n.e.Eval())
 	}
 }
 
-func (sim *simulator) updateAllBlockedEvents() {
+func (sim *Simulator) handleBlockedEvents() {
 	values := make([]expr.Value, len(sim.blocked))
 	// eval
 	for i, ev := range sim.blocked {
@@ -179,12 +180,12 @@ func (sim *simulator) updateAllBlockedEvents() {
 	}
 	// update values and schedule next evs
 	for i, ev := range sim.blocked {
-		deferUpdate(ev.sig.n, values[i], sim.now, sim)
+		sim.updateNodeValue(ev.sig.n, values[i])
 	}
 }
 
-func (sim *simulator) putEvent(ev event) {
-	// sort by ts and then, leave blocking later
+func (sim *Simulator) putEvent(ev event) {
+	// sort by ts and then, blocking always comes later
 	sim.eventPool = append(sim.eventPool, ev)
 	sort.Slice(sim.eventPool, func(i, j int) bool {
 		ei := sim.eventPool[i]
