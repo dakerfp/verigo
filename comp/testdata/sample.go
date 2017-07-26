@@ -1,8 +1,5 @@
 package testdata
 
-// type Posedge bool // XXX
-// type Negedge bool // XXX
-
 type Mux22 struct {
 	A   int  `input`
 	B   int  `input`

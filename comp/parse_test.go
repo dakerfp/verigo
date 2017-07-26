@@ -5,9 +5,10 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	err := parse("testdata/sample.go")
+	mods, funcs, err := parse("testdata/func.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Fail()
+	t.Fatal(funcs)
+	t.Fatal(mods)
 }
