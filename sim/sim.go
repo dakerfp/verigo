@@ -64,14 +64,6 @@ func listen(n *Node, s Sensivity) *signal {
 	return sig
 }
 
-func updateNodeEvent(n *Node, v expr.Value, ts time.Time) event {
-	n.e = v
-	return event{
-		&signal{n, Anyedge},
-		ts,
-	}
-}
-
 type Simulator struct {
 	eventPool []event
 	blocked   []event
@@ -111,7 +103,11 @@ func (sim *Simulator) Run() {
 }
 
 func (sim *Simulator) Set(n *Node, v expr.Value, ts time.Time) {
-	sim.scheduler <- updateNodeEvent(n, v, ts)
+	n.e = v
+	sim.scheduler <- event{
+		&signal{n, Anyedge},
+		ts,
+	}
 }
 
 func (sim *Simulator) updateNodeValue(n *Node, v expr.Value) {
