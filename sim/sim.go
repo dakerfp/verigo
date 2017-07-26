@@ -16,8 +16,6 @@ const (
 	Posedge
 	Negedge
 	Block
-
-	NoBlock = ^Block
 )
 
 type Node struct {
@@ -117,7 +115,7 @@ func (sim *Simulator) updateNodeValue(n *Node, v expr.Value) {
 	n.v = v
 	for _, sig := range n.notify {
 		posedge := v.True()
-		switch sig.s & NoBlock {
+		switch sig.s & ^Block {
 		case Noedge:
 			continue
 		case Posedge:
@@ -150,19 +148,20 @@ func (sim *Simulator) handleAnyEvent() (any bool) {
 }
 
 func (sim *Simulator) handleNextEvent() {
-	ev := sim.eventPool[0]
-	sim.eventPool = sim.eventPool[1:]
+	ev := sim.eventPool[0] // first event
 
 	if ev.ts.Before(sim.now) {
 		panic(fmt.Errorf("ev.ts %v should never be before %v", ev.ts, sim.now))
 	}
 
-	if ev.ts.After(sim.now) {
+	if ev.ts.After(sim.now) && len(sim.blocked) > 0 {
 		// ensure all blocked events are handled before
 		sim.handleBlockedEvents()
-		sim.blocked = nil
-		sim.now = ev.ts // step simulation time
+		return
 	}
+
+	sim.eventPool = sim.eventPool[1:] // pop
+	sim.now = ev.ts                   // step simulation time
 
 	if ev.sig.block() {
 		// append event in blocked queue
@@ -182,8 +181,10 @@ func (sim *Simulator) handleBlockedEvents() {
 	}
 	// update values and schedule next evs
 	for i, ev := range sim.blocked {
-		sim.updateNodeValue(ev.sig.n, values[i])
+		n := ev.sig.n
+		sim.updateNodeValue(n, values[i])
 	}
+	sim.blocked = nil
 }
 
 func (sim *Simulator) putEvent(ev event) {

@@ -72,7 +72,7 @@ func TestClk(t *testing.T) {
 	clk := newNode(expr.F)
 	a := newNode(expr.F)
 	na := newNode(expr.Not(a),
-		listen(clk, Posedge), // only on clock trigger
+		listen(clk, Posedge|Block), // only on clock trigger
 	)
 
 	if !na.Eval().True() {
