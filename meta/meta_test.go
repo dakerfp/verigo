@@ -152,6 +152,14 @@ func TestMux4(t *testing.T) {
 	}
 }
 
+// module And
+// 	(input bit A, B,
+// 	 output O);
+
+// 	assign O = A && B;
+
+// endmodule : And
+
 type And struct {
 	Mod
 
@@ -168,7 +176,7 @@ func and() *And {
 
 func TestAnd(t *testing.T) {
 	a := and()
-	sig := a.binds[0]
+	sig := a.binds[0] // XXX
 	v := sig.Update()
 	if v.Bool() {
 		t.Fatal(v)
@@ -179,5 +187,27 @@ func TestAnd(t *testing.T) {
 	v = sig.Update()
 	if !v.Bool() {
 		t.Fatal(v)
+	}
+}
+
+type DFF struct {
+	Mod
+
+	In  bool "input"
+	Clk bool "input"
+	Out bool "output"
+}
+
+func dff() *DFF {
+	m := &DFF{}
+	Init(m)
+	m.Always(&m.Out, `In`, Pos(&m.Clk))
+	return m
+}
+
+func TestDFF(t *testing.T) { // XXX: create proper test
+	m := dff()
+	if m.Out {
+		t.Fatal(m.Out)
 	}
 }

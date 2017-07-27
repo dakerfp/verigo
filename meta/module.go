@@ -140,6 +140,17 @@ func (m *Mod) Bind(recv interface{}, x string) {
 	}
 }
 
+func Pos(x interface{}) Signal {
+	v := reflect.ValueOf(x)
+	return Signal{v, Posedge, func() reflect.Value { return v }}
+}
+
+func (m *Mod) Always(recv interface{}, x string, sigs ...Signal) {
+	if err := m.parseExpr(recv, x); err != nil {
+		panic(err)
+	}
+}
+
 var (
 	ErrInvalidIdentifier = errors.New("invalid identifier")
 )
