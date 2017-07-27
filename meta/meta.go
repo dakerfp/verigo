@@ -13,7 +13,7 @@ const (
 	Z
 )
 
-func True(v Value) bool {
+func True(v interface{}) bool {
 	t := reflect.TypeOf(v)
 	switch t.Kind() {
 	case reflect.Bool:
@@ -27,7 +27,7 @@ func True(v Value) bool {
 	return false
 }
 
-func Width(v Value) int {
+func Width(v interface{}) int {
 	t := reflect.TypeOf(v)
 	switch t.Kind() {
 	case reflect.Bool:
