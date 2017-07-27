@@ -138,21 +138,6 @@ func mux4() *Mux4 {
 	return m
 }
 
-type And struct {
-	Mod
-
-	A, B bool "input"
-	O    bool "output"
-}
-
-func and() *And {
-	m := &And{}
-	m.Assign(&m.O, func() bool {
-		return m.A && m.B
-	})
-	return m
-}
-
 func TestMux4(t *testing.T) {
 	mux := mux4()
 
@@ -164,5 +149,35 @@ func TestMux4(t *testing.T) {
 
 	if len(meta.outputs) != 1 {
 		t.Fatal()
+	}
+}
+
+type And struct {
+	Mod
+
+	A, B bool "input"
+	O    bool "output"
+}
+
+func and() *And {
+	m := &And{}
+	Init(m)
+	m.Bind(&m.O, `A && B`)
+	return m
+}
+
+func TestAnd(t *testing.T) {
+	a := and()
+	sig := a.binds[0]
+	v := sig.Update()
+	if v.Bool() {
+		t.Fatal(v)
+	}
+
+	a.A = true
+	a.B = true
+	v = sig.Update()
+	if !v.Bool() {
+		t.Fatal(v)
 	}
 }

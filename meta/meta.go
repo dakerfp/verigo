@@ -4,6 +4,15 @@ import (
 	"reflect"
 )
 
+type Sensivity int
+
+const (
+	Anyedge Sensivity = 1 << iota
+	Posedge
+	Negedge
+	Block
+)
+
 type Logic uint // zero value represents X undefined
 
 const (
