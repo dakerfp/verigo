@@ -61,8 +61,8 @@ func TestCat(t *testing.T) {
 type Mux2 struct {
 	Mod
 
-	A, B, Sel bool `io:"input"`
-	Out       bool `io:"output"`
+	A, B, Sel bool "input"
+	Out       bool "output"
 }
 
 func mux2() *Mux2 {
@@ -117,23 +117,39 @@ func TestMux2(t *testing.T) {
 type Mux4 struct {
 	Mod
 
-	A, B, C, D, Sel0, Sel1 bool `io:"input"`
-	Out                    bool `io:"output"`
+	A, B, C, D, Sel0, Sel1 bool "input"
+	Out                    bool "output"
+
+	ml, mr, mo *Mux2 "submodule"
 }
 
 func mux4() *Mux4 {
 	m := &Mux4{}
 
-	ml := mux2()
-	mr := mux2()
-	mo := mux2()
+	m.ml = mux2()
+	m.mr = mux2()
+	m.mo = mux2()
+	m.Sub(m.ml, m.mr, m.mo) // XXX: use struct tag
 
-	m.Sub(ml, mr, mo)
+	// m.Wire(&m.ml.A, &m.A)
+	// m.Wire(&m.ml.B, &m.B)
+	// m.Wire(&m.ml.Sel, &m.Sel0)
 
-	m.Wire(&ml.A, &m.A)
-	m.Wire(&ml.B, &m.B)
-	m.Wire(&ml.Sel, &m.Sel0)
+	return m
+}
 
+type And struct {
+	Mod
+
+	A, B bool "input"
+	O    bool "output"
+}
+
+func and() *And {
+	m := &And{}
+	m.Assign(&m.O, func() bool {
+		return m.A && m.B
+	})
 	return m
 }
 

@@ -19,10 +19,13 @@ type Mod struct {
 }
 
 func Init(m Module) {
+	meta := m.Meta()
+	// build it bottom up
+	for _, sub := range meta.subs {
+		Init(sub)
+	}
 	data := reflect.Indirect(reflect.ValueOf(m))
 	t := data.Type()
-
-	meta := m.Meta()
 	meta.Name = t.Name()
 	meta.inputs = make(map[string]reflect.Value)
 	meta.outputs = make(map[string]reflect.Value)
@@ -34,22 +37,20 @@ func Init(m Module) {
 			continue
 		}
 
-		switch field.Tag.Get("io") {
+		switch string(field.Tag) {
 		case "":
 			// ignore field
 		case "input":
 			meta.inputs[field.Name] = data.FieldByIndex(field.Index)
 		case "output":
 			meta.outputs[field.Name] = data.FieldByIndex(field.Index)
+		case "submodule":
+			// XXX: init automatically
 		default:
 			panic(fmt.Errorf("io tag %q not supported in field %q", field.Tag.Get("io"), field.Name))
 		}
 	}
 	fmt.Println(data, t, meta)
-
-	for _, sub := range meta.subs {
-		Init(sub)
-	}
 }
 
 func (m *Mod) Meta() *Mod {
