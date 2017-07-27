@@ -99,10 +99,17 @@ func idname(expr ast.Expr) string {
 	return expr.(*ast.Ident).Name
 }
 
-func (p *Parser) parseParams(fl *ast.FieldList) (dts map[string]DataType, err error) {
+func (p *Parser) parseFieldList(fl *ast.FieldList) (dts map[string]DataType, err error) {
 	dts = make(map[string]DataType)
+	id := 0
 	for _, field := range fl.List {
 		tp := basicTypeToDataType[idname(field.Type)]
+		if len(field.Names) == 0 {
+			// generate a name for unnamed fields
+			dts[fmt.Sprintf("_%d", id)] = tp
+			id++
+			continue
+		}
 		for _, name := range field.Names {
 			dts[idname(name)] = tp
 		}
@@ -112,10 +119,18 @@ func (p *Parser) parseParams(fl *ast.FieldList) (dts map[string]DataType, err er
 
 func (p *Parser) parseCombFunc(funcDecl *ast.FuncDecl) error {
 	name := idname(funcDecl.Name)
-	params, err := p.parseParams(funcDecl.Type.Params)
+	params, err := p.parseFieldList(funcDecl.Type.Params)
+	if err != nil {
+		return err
+	}
+	results, err := p.parseFieldList(funcDecl.Type.Results)
+	if err != nil {
+		return err
+	}
 	p.functions[name] = &Function{
-		Name:   name,
-		Params: params,
+		Name:    name,
+		Inputs:  params,
+		Outputs: results,
 	}
 	return err
 }

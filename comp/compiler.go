@@ -24,6 +24,7 @@ type Module struct {
 }
 
 type Function struct {
-	Name   string
-	Params map[string]DataType
+	Name    string
+	Inputs  map[string]DataType
+	Outputs map[string]DataType
 }
