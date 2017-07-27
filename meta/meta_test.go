@@ -68,14 +68,22 @@ type Mux2 struct {
 func mux2() *Mux2 {
 	m := &Mux2{}
 
-	m.Assign(m.Out, func() Value {
+	m.Assign(&m.Out, func() bool {
 		if True(m.Sel) {
 			return m.B
 		}
 		return m.A
 	})
+	// or  m.Assign(&m.Out, m.output)
 
 	return m
+}
+
+func (m *Mux2) output() bool {
+	if True(m.Sel) {
+		return m.B
+	}
+	return m.A
 }
 
 func TestMux2(t *testing.T) {
@@ -111,8 +119,6 @@ type Mux4 struct {
 
 	A, B, C, D, Sel0, Sel1 bool `io:"input"`
 	Out                    bool `io:"output"`
-
-	ml, mr, mo *Mux2
 }
 
 func mux4() *Mux4 {
@@ -122,25 +128,11 @@ func mux4() *Mux4 {
 	mr := mux2()
 	mo := mux2()
 
+	m.Sub(ml, mr, mo)
+
 	m.Wire(&ml.A, &m.A)
 	m.Wire(&ml.B, &m.B)
 	m.Wire(&ml.Sel, &m.Sel0)
-
-	// m.Wire(mr.A, m.C)
-	// m.Assign(mr.B, m.D)
-	// m.Assign(mr.Sel, m.Sel0)
-
-	// m.Assign(mo.A, ml.Out)
-	// m.Assign(mo.B, mr.Out)
-	// m.Assign(mo.Sel, m.Sel1)
-	// m.Assign(m.Out, mo.Out)
-
-	m.Sub(ml)
-	m.Sub(mr)
-	m.Sub(mo)
-	m.ml = ml
-	m.mr = mr
-	m.mo = mo
 
 	return m
 }
