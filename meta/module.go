@@ -14,22 +14,12 @@ type Module interface {
 	Sub(...Module)
 }
 
-type UpdateFunc func() reflect.Value
-
-type Signal struct {
-	V      reflect.Value
-	S      Sensivity
-	Update UpdateFunc
-}
-
 type Mod struct {
-	Name    string
-	subs    []Module
-	wires   [][]interface{}
-	binds   []Signal
-	inputs  map[string]reflect.Value
-	outputs map[string]reflect.Value
-	values  map[string]reflect.Value
+	Name string
+
+	subs   []Module
+	nodes  map[reflect.Value]*Node
+	values map[string]*Node
 }
 
 func Init(m Module) {
@@ -41,9 +31,8 @@ func Init(m Module) {
 	data := reflect.Indirect(reflect.ValueOf(m))
 	t := data.Type()
 	meta.Name = t.Name()
-	meta.inputs = make(map[string]reflect.Value)
-	meta.outputs = make(map[string]reflect.Value)
-	meta.values = make(map[string]reflect.Value)
+	meta.nodes = make(map[reflect.Value]*Node)
+	meta.values = make(map[string]*Node)
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -53,18 +42,22 @@ func Init(m Module) {
 		}
 
 		switch string(field.Tag) {
+		case "submodule":
+			// XXX: init automatically
+			continue
 		case "":
 			// ignore field
 		case "input":
-			meta.inputs[field.Name] = data.FieldByIndex(field.Index)
+			// meta.inputs[field.Name] = data.FieldByIndex(field.Index)
 		case "output":
-			meta.outputs[field.Name] = data.FieldByIndex(field.Index)
-		case "submodule":
-			// XXX: init automatically
+			// meta.outputs[field.Name] = data.FieldByIndex(field.Index)
 		default:
 			panic(fmt.Errorf("io tag %q not supported in field %q", field.Tag.Get("io"), field.Name))
 		}
-		meta.values[field.Name] = data.FieldByIndex(field.Index)
+		v := data.FieldByIndex(field.Index)
+		n := &Node{V: v}
+		meta.values[field.Name] = n
+		meta.nodes[v] = n
 	}
 	fmt.Println(data, t, meta)
 }
@@ -114,39 +107,18 @@ func reftype(v interface{}) reflect.Type {
 	return e.Type()
 }
 
-func (m *Mod) Wire(wire ...interface{}) {
-	if len(wire) <= 1 {
-		panic("wire must have at least 2 elements")
-	}
-
-	wt0 := reftype(wire[0])
-	for _, we := range wire[1:] {
-		wt := reftype(we)
-		if !wt.ConvertibleTo(wt0) {
-			panic(wt)
-		}
-	}
-
-	m.wires = append(m.wires, wire)
-}
-
 func (m *Mod) Sub(subs ...Module) {
-	m.subs = subs
+	m.subs = append(m.subs, subs...)
 }
 
 func (m *Mod) Bind(recv interface{}, x string) {
-	if err := m.parseExpr(recv, x); err != nil {
+	if err := m.parseExpr(recv, nil, x); err != nil {
 		panic(err)
 	}
 }
 
-func Pos(x interface{}) Signal {
-	v := reflect.ValueOf(x)
-	return Signal{v, Posedge, func() reflect.Value { return v }}
-}
-
 func (m *Mod) Always(recv interface{}, x string, sigs ...Signal) {
-	if err := m.parseExpr(recv, x); err != nil {
+	if err := m.parseExpr(recv, signals, x); err != nil {
 		panic(err)
 	}
 }
@@ -159,13 +131,13 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, e
 	switch e.(type) {
 	case *ast.Ident:
 		identExpr := e.(*ast.Ident)
-		v, ok := m.values[identExpr.Name]
+		n, ok := m.values[identExpr.Name]
 		if !ok {
 			err = ErrInvalidIdentifier
 		}
 		dependsOn = []string{identExpr.Name}
 		update = func() reflect.Value {
-			return v
+			return n.V // XXX: test if closure closes in n
 		}
 	case *ast.BinaryExpr:
 		binaryExpr := e.(*ast.BinaryExpr)
@@ -197,14 +169,34 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, e
 	return
 }
 
-func (m *Mod) parseExpr(recv interface{}, x string) (err error) {
+func (m *Mod) parseExpr(recv interface{}, signals []Signal, x string) (err error) {
 	var exp ast.Expr
 	exp, err = parser.ParseExpr(x)
 	if err != nil {
 		return
 	}
-	update, _, err := m.assembleExpr(exp)
-	m.binds = append(m.binds, Signal{reflect.ValueOf(recv), Anyedge, update})
-
+	r := reflect.ValueOf(recv)
+	recvN := m.nodes[r]
+	update, deps, err := m.assembleExpr(exp)
+	for _, dep := range deps {
+		n := m.values[dep]
+		Connect(n, recvN)
+	}
 	return err
 }
+
+// func (m *Mod) Wire(wire ...interface{}) {
+// 	if len(wire) <= 1 {
+// 		panic("wire must have at least 2 elements")
+// 	}
+
+// 	wt0 := reftype(wire[0])
+// 	for _, we := range wire[1:] {
+// 		wt := reftype(we)
+// 		if !wt.ConvertibleTo(wt0) {
+// 			panic(wt)
+// 		}
+// 	}
+
+// 	m.wires = append(m.wires, wire)
+// }

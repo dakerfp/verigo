@@ -1,6 +1,7 @@
 package meta
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -193,9 +194,8 @@ func TestAnd(t *testing.T) {
 type DFF struct {
 	Mod
 
-	In  bool "input"
-	Clk bool "input"
-	Out bool "output"
+	Clk, In bool "input"
+	Out     bool "output"
 }
 
 func dff() *DFF {
