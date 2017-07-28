@@ -117,7 +117,7 @@ func (m *Mod) Bind(recv interface{}, x string) {
 	}
 }
 
-func (m *Mod) Always(recv interface{}, x string, sigs ...Signal) {
+func (m *Mod) Always(recv interface{}, x string, signals ...Signal) {
 	if err := m.parseExpr(recv, signals, x); err != nil {
 		panic(err)
 	}
@@ -178,9 +178,10 @@ func (m *Mod) parseExpr(recv interface{}, signals []Signal, x string) (err error
 	r := reflect.ValueOf(recv)
 	recvN := m.nodes[r]
 	update, deps, err := m.assembleExpr(exp)
+	recvN.Update = update
 	for _, dep := range deps {
-		n := m.values[dep]
-		Connect(n, recvN)
+		n := m.Values[dep]
+		Connect(n, recvN, Anyedge) // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 	}
 	return err
 }
