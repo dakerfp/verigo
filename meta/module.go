@@ -59,7 +59,6 @@ func Init(m Module) {
 		meta.values[field.Name] = n
 		meta.nodes[v] = n
 	}
-	fmt.Println(data, t, meta)
 }
 
 func (m *Mod) Meta() *Mod {
@@ -85,12 +84,6 @@ func (m *Mod) Assign(recv interface{}, f interface{}) {
 	if !rett.ConvertibleTo(recvt) {
 		panic("assign to different types")
 	}
-
-	fv := reflect.ValueOf(f)
-	fmt.Println(t.NumIn())
-	fmt.Println(t.NumOut())
-	fmt.Println(fv)
-	fmt.Println(reflect.TypeOf(m))
 }
 
 func reftype(v interface{}) reflect.Type {
