@@ -2,64 +2,25 @@ package sim
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"time"
 
-	"github.com/dakerfp/verigo/expr"
+	"github.com/dakerfp/verigo/meta"
 )
-
-type Sensivity int
-
-const (
-	Noedge Sensivity = 1 << iota
-	Anyedge
-	Posedge
-	Negedge
-	Block
-)
-
-type Node struct {
-	e      expr.Expr
-	v      expr.Value
-	listen []*signal
-	notify []*signal
-}
-
-func NewNode(e expr.Expr) *Node {
-	return &Node{e: e, v: e.Eval()}
-}
-
-func (n *Node) Eval() expr.Value {
-	if n.v == nil {
-		n.v = n.e.Eval()
-	}
-	return n.v
-}
-
-func Connect(a *Node, b *Node, s Sensivity) {
-	sig := listen(a, s)
-	sig.n = b
-	b.listen = append(b.listen, sig)
-}
 
 type signal struct {
-	n *Node
-	s Sensivity
+	n *meta.Node
+	s meta.Sensivity
 }
 
 func (sig *signal) block() bool {
-	return sig.s&Block != 0
+	return sig.s.Block()
 }
 
 type event struct {
 	sig *signal
 	ts  time.Time
-}
-
-func listen(n *Node, s Sensivity) *signal {
-	sig := &signal{nil, s}
-	n.notify = append(n.notify, sig)
-	return sig
 }
 
 type Simulator struct {
@@ -100,36 +61,38 @@ func (sim *Simulator) Run() {
 	}
 }
 
-func (sim *Simulator) Set(n *Node, v expr.Value, ts time.Time) {
-	n.e = v
+func (sim *Simulator) Set(n *meta.Node, x interface{}, ts time.Time) {
+	v := reflect.ValueOf(x)
+	n.Update = func() reflect.Value { return v }
 	sim.scheduler <- event{
-		&signal{n, Anyedge},
+		&signal{n, meta.Anyedge},
 		ts,
 	}
 }
 
-func (sim *Simulator) updateNodeValue(n *Node, v expr.Value) {
-	if expr.Eq(n.v, v) {
+func (sim *Simulator) updateNodeValue(n *meta.Node, v reflect.Value) {
+	if reflect.DeepEqual(n.V, v) { // XXX: implement Eq
 		return
 	}
-	n.v = v
-	for _, sig := range n.notify {
-		posedge := v.True()
-		switch sig.s & ^Block {
-		case Noedge:
+	n.V = v
+	for _, edge := range n.Notify {
+		posedge := v.Bool() // XXX: may fail
+		switch edge.Sensivity.Edge() {
+		case meta.Noedge:
 			continue
-		case Posedge:
+		case meta.Posedge:
 			if !posedge {
 				continue
 			}
-		case Negedge:
+		case meta.Negedge:
 			if posedge {
 				continue
 			}
-		case Anyedge:
+		case meta.Anyedge:
 			// just proceeed
 		}
 		// XXX: Add delay
+		sig := &signal{edge.To, edge.Sensivity} // XXX
 		sim.putEvent(event{sig, sim.now})
 	}
 }
@@ -169,15 +132,18 @@ func (sim *Simulator) handleNextEvent() {
 	} else {
 		// execute now
 		n := ev.sig.n
-		sim.updateNodeValue(n, n.e.Eval())
+		fmt.Println(n)
+		fmt.Println(ev)
+		fmt.Println(ev.sig)
+		sim.updateNodeValue(n, n.Update())
 	}
 }
 
 func (sim *Simulator) handleBlockedEvents() {
-	values := make([]expr.Value, len(sim.blocked))
+	values := make([]reflect.Value, len(sim.blocked))
 	// eval
 	for i, ev := range sim.blocked {
-		values[i] = ev.sig.n.e.Eval()
+		values[i] = ev.sig.n.Update()
 	}
 	// update values and schedule next evs
 	for i, ev := range sim.blocked {

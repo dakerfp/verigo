@@ -1,67 +1,91 @@
 package sim
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/dakerfp/verigo/expr"
+	"github.com/dakerfp/verigo/meta"
 )
 
-func newNode(e expr.Expr, listen ...*signal) *Node {
-	n := &Node{e: e, v: e.Eval(), listen: listen, notify: nil}
-	for _, sig := range listen {
-		sig.n = n
+func newNode(update meta.UpdateFunc) *meta.Node {
+	return &meta.Node{
+		V:      update(),
+		Listen: nil,
+		Notify: nil,
+		Update: update,
 	}
-	return n
+}
+
+var (
+	True  = true
+	False = false
+)
+
+func T() reflect.Value {
+	return reflect.ValueOf(True)
+}
+
+func F() reflect.Value {
+	return reflect.ValueOf(False)
+}
+
+func Not(a *meta.Node) meta.UpdateFunc {
+	return func() reflect.Value {
+		return reflect.ValueOf(!a.V.Bool())
+	}
+}
+
+func And(a *meta.Node, b *meta.Node) meta.UpdateFunc {
+	return func() reflect.Value {
+		return reflect.ValueOf(a.V.Bool() && b.V.Bool())
+	}
 }
 
 func TestComb(t *testing.T) {
 	// build nodes
-	a := newNode(expr.F)
-	b := newNode(expr.F)
-	c := newNode(expr.F)
-	d := newNode(expr.F)
+	a := newNode(F)
+	b := newNode(F)
+	c := newNode(F)
+	d := newNode(F)
 
-	ab := newNode(expr.And(a, b),
-		listen(a, Anyedge),
-		listen(b, Anyedge),
-	)
+	ab := newNode(And(a, b))
+	meta.Connect(a, ab, meta.Anyedge)
+	meta.Connect(b, ab, meta.Anyedge)
 
-	cd := newNode(expr.And(c, d),
-		listen(c, Anyedge),
-		listen(d, Anyedge),
-	)
+	cd := newNode(And(c, d))
+	meta.Connect(c, cd, meta.Anyedge)
+	meta.Connect(d, cd, meta.Anyedge)
 
-	o := newNode(expr.And(ab, cd),
-		listen(ab, Anyedge),
-		listen(cd, Anyedge),
-	)
+	o := newNode(And(ab, cd))
+	meta.Connect(ab, o, meta.Anyedge)
+	meta.Connect(cd, o, meta.Anyedge)
 
-	if o.Eval().True() {
-		t.Fatal(o.Eval())
+	if o.Update().Bool() {
+		t.Fatal(o.Update())
 	}
 
 	sim := NewSimulator()
 	go func() {
 		now := time.Now()
-		sim.Set(a, expr.T, now)
-		sim.Set(b, expr.T, now)
-		sim.Set(c, expr.T, now)
-		sim.Set(d, expr.T, now)
+		sim.Set(a, True, now)
+		sim.Set(b, True, now)
+		sim.Set(c, True, now)
+		sim.Set(d, True, now)
 		sim.End()
 	}()
 	sim.Run()
 
-	if !ab.Eval().True() {
-		t.Fatal(ab.Eval())
+	if !ab.V.Bool() {
+		t.Fatal(ab.V)
 	}
 
-	if !cd.Eval().True() {
-		t.Fatal(ab.Eval())
+	if !cd.V.Bool() {
+		t.Fatal(cd.V)
 	}
 
-	if !o.Eval().True() {
-		t.Fatal(o.Eval(), expr.T, expr.F)
+	if !o.V.Bool() {
+		t.Fatal(o.V)
 	}
 }
 
@@ -69,53 +93,52 @@ func TestClk(t *testing.T) {
 	// build nodes
 	// always_ff @(posedge clk)
 	//     na <= ~a;
-	clk := newNode(expr.F)
-	a := newNode(expr.F)
-	na := newNode(expr.Not(a),
-		listen(clk, Posedge|Block), // only on clock trigger
-	)
+	clk := newNode(F)
+	a := newNode(F)
+	na := newNode(Not(a))
+	meta.Connect(clk, na, meta.Posedge|meta.Block) // only on clock trigger
 
-	if !na.Eval().True() {
-		t.Fatal(na.Eval())
+	if !na.Update().Bool() {
+		t.Fatal(na.Update())
 	}
 
 	now := time.Now()
 
 	sim := NewSimulator()
 	go func() {
-		sim.Set(a, expr.T, now)
+		sim.Set(a, True, now)
 		sim.End()
 	}()
 	sim.Run()
 
-	if !na.Eval().True() {
-		t.Fatal(na.Eval())
+	if !na.V.Bool() {
+		t.Fatal(na.Update())
 	}
 
 	sim = NewSimulator()
 	go func() {
-		sim.Set(clk, expr.T, now)
+		sim.Set(clk, True, now)
 		sim.End()
 	}()
 	sim.Run()
 
-	if na.Eval().True() {
-		t.Fatal(na.Eval())
+	if na.V.Bool() {
+		t.Fatal(na.V)
 	}
 
 	sim = NewSimulator()
 	go func() {
-		sim.Set(a, expr.T, now)
-		sim.Set(clk, expr.F, now)
-		sim.Set(clk, expr.T, now.Add(1)) // trigger a <- true
+		sim.Set(a, True, now)
+		sim.Set(clk, False, now)
+		sim.Set(clk, True, now.Add(1)) // trigger a <- true
 		// should not trigger a <- false
-		sim.Set(a, expr.F, now.Add(2))
-		sim.Set(clk, expr.F, now.Add(3))
+		sim.Set(a, False, now.Add(2))
+		sim.Set(clk, False, now.Add(3))
 		sim.End()
 	}()
 	sim.Run()
 
-	if na.Eval().True() {
-		t.Fatal(na.Eval())
+	if na.V.Bool() {
+		t.Fatal(na.V)
 	}
 }
