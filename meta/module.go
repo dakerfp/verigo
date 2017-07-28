@@ -17,9 +17,11 @@ type Module interface {
 type Mod struct {
 	Name string
 
-	subs   []Module
-	nodes  map[reflect.Value]*Node
-	values map[string]*Node
+	subs    []Module
+	nodes   map[reflect.Value]*Node
+	Values  map[string]*Node
+	Inputs  []*Node
+	Outputs []*Node
 }
 
 func Init(m Module) {
@@ -32,7 +34,7 @@ func Init(m Module) {
 	t := data.Type()
 	meta.Name = t.Name()
 	meta.nodes = make(map[reflect.Value]*Node)
-	meta.values = make(map[string]*Node)
+	meta.Values = make(map[string]*Node)
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -41,23 +43,28 @@ func Init(m Module) {
 			continue
 		}
 
-		switch string(field.Tag) {
-		case "submodule":
+		if string(field.Tag) == "submodule" {
 			// XXX: init automatically
 			continue
+		}
+
+		v := data.FieldByIndex(field.Index)
+		t := v.Type()
+		n := &Node{T: t, V: v, Name: field.Name}
+		meta.Values[field.Name] = n
+		meta.nodes[v] = n
+
+		switch string(field.Tag) {
 		case "":
 			// ignore field
 		case "input":
-			// meta.inputs[field.Name] = data.FieldByIndex(field.Index)
+			meta.Inputs = append(meta.Inputs, n)
 		case "output":
-			// meta.outputs[field.Name] = data.FieldByIndex(field.Index)
+			meta.Outputs = append(meta.Outputs, n)
 		default:
 			panic(fmt.Errorf("io tag %q not supported in field %q", field.Tag.Get("io"), field.Name))
 		}
-		v := data.FieldByIndex(field.Index)
-		n := &Node{V: v}
-		meta.values[field.Name] = n
-		meta.nodes[v] = n
+
 	}
 }
 
@@ -124,7 +131,7 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, e
 	switch e.(type) {
 	case *ast.Ident:
 		identExpr := e.(*ast.Ident)
-		n, ok := m.values[identExpr.Name]
+		n, ok := m.Values[identExpr.Name]
 		if !ok {
 			err = ErrInvalidIdentifier
 		}

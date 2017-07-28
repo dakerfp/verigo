@@ -28,9 +28,11 @@ type Edge struct {
 }
 
 type Node struct {
+	T              reflect.Type
 	V              reflect.Value
 	Notify, Listen []*Edge
 	Update         UpdateFunc
+	Name           string
 }
 
 func Connect(from, to *Node, s Sensivity) {
