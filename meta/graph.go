@@ -12,6 +12,14 @@ const (
 	Noedge  = 0
 )
 
+func (s Sensivity) Block() bool {
+	return s&Block != 0
+}
+
+func (s Sensivity) Edge() Sensivity {
+	return s &^ Block
+}
+
 type UpdateFunc func() reflect.Value
 
 type Edge struct {
