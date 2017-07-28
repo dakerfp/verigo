@@ -8,9 +8,9 @@ import (
 	"github.com/dakerfp/verigo/meta"
 )
 
-func newNode(update meta.UpdateFunc) *meta.Node {
+func Node(v0 reflect.Value, update meta.UpdateFunc) *meta.Node {
 	return &meta.Node{
-		V:      update(),
+		V:      v0,
 		Listen: nil,
 		Notify: nil,
 		Update: update,
@@ -44,20 +44,20 @@ func And(a *meta.Node, b *meta.Node) meta.UpdateFunc {
 
 func TestComb(t *testing.T) {
 	// build nodes
-	a := newNode(F)
-	b := newNode(F)
-	c := newNode(F)
-	d := newNode(F)
+	a := Node(F(), F)
+	b := Node(F(), F)
+	c := Node(F(), F)
+	d := Node(F(), F)
 
-	ab := newNode(And(a, b))
+	ab := Node(F(), And(a, b))
 	meta.Connect(a, ab, meta.Anyedge)
 	meta.Connect(b, ab, meta.Anyedge)
 
-	cd := newNode(And(c, d))
+	cd := Node(F(), And(c, d))
 	meta.Connect(c, cd, meta.Anyedge)
 	meta.Connect(d, cd, meta.Anyedge)
 
-	o := newNode(And(ab, cd))
+	o := Node(F(), And(ab, cd))
 	meta.Connect(ab, o, meta.Anyedge)
 	meta.Connect(cd, o, meta.Anyedge)
 
@@ -93,9 +93,9 @@ func TestClk(t *testing.T) {
 	// build nodes
 	// always_ff @(posedge clk)
 	//     na <= ~a;
-	clk := newNode(F)
-	a := newNode(F)
-	na := newNode(Not(a))
+	clk := Node(F(), F)
+	a := Node(F(), F)
+	na := Node(T(), Not(a))
 	meta.Connect(clk, na, meta.Posedge|meta.Block) // only on clock trigger
 
 	if !na.Update().Bool() {
