@@ -15,7 +15,7 @@ type signal struct {
 }
 
 func (sig *signal) block() bool {
-	return sig.s.Block()
+	return sig.s&meta.Block != 0
 }
 
 type event struct {
@@ -77,7 +77,7 @@ func (sim *Simulator) updateNodeValue(n *meta.Node, v reflect.Value) {
 	n.V = v
 	for _, edge := range n.Notify {
 		posedge := v.Bool() // XXX: may fail
-		switch edge.Sensivity.Edge() {
+		switch edge.Sensivity &^ meta.Block {
 		case meta.Noedge:
 			continue
 		case meta.Posedge:

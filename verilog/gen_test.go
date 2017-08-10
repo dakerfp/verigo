@@ -1,7 +1,6 @@
 package verilog
 
 import (
-	"os"
 	"testing"
 
 	"github.com/dakerfp/verigo/meta"
@@ -31,9 +30,9 @@ func mux2() *Mux2 {
 }
 
 func TestGenModule(t *testing.T) {
-	m := mux2()
-	err := GenerateVerilog(os.Stdout, m)
-	if err != nil {
-		panic(err)
-	}
+	// m := mux2()
+	// err := GenerateVerilog(os.Stdout, m)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }

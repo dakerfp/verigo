@@ -13,13 +13,13 @@ func init() {
 
 	verilogTemplate = template.Must(template.New("verilog").Parse(`
 {{- define "inports"}}
-	{{- range $i, $n := .}}
+	{{- range $i, $n := $}}
 		{{- if $i}}	 {{end}}input {{$n.T}} {{$n.Name}}
 		{{- ",\n"}}
 	{{- end}}
 {{- end}}
 {{- define "outports"}}
-	{{- range $i, $n := .}}
+	{{- range $i, $n := $}}
 		{{- if gt $i 0}}	 {{end}}output {{$n.T}} {{$n.Name}}
 		{{- ",\n"}}
 	{{- end}}
@@ -27,7 +27,6 @@ func init() {
 modulename {{.Name}}
 	({{template "inports" .Inputs}}
 	 {{template "outports" .Outputs}}	);
-
 
 endmodule : {{.Name}}
 `))
