@@ -18,7 +18,6 @@ type Mod struct {
 	Name string
 
 	subs    []Module
-	nodes   map[reflect.Value]*Node
 	Values  map[string]*Node
 	Inputs  []*Node
 	Outputs []*Node
@@ -33,7 +32,6 @@ func Init(m Module) {
 	data := reflect.Indirect(reflect.ValueOf(m))
 	t := data.Type()
 	meta.Name = t.Name()
-	meta.nodes = make(map[reflect.Value]*Node)
 	meta.Values = make(map[string]*Node)
 
 	for i := 0; i < t.NumField(); i++ {
@@ -52,7 +50,6 @@ func Init(m Module) {
 		t := v.Type()
 		n := &Node{T: t, V: v, Name: field.Name}
 		meta.Values[field.Name] = n
-		meta.nodes[v] = n
 
 		switch string(field.Tag) {
 		case "":
@@ -111,13 +108,13 @@ func (m *Mod) Sub(subs ...Module) {
 	m.subs = append(m.subs, subs...)
 }
 
-func (m *Mod) Bind(recv interface{}, x string) {
+func (m *Mod) Bind(recv string, x string) {
 	if err := m.parseExpr(recv, nil, x); err != nil {
 		panic(err)
 	}
 }
 
-func (m *Mod) Always(recv interface{}, x string, signals ...Signal) {
+func (m *Mod) Always(recv string, x string, signals ...Signal) {
 	if err := m.parseExpr(recv, signals, x); err != nil {
 		panic(err)
 	}
@@ -169,14 +166,13 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, e
 	return
 }
 
-func (m *Mod) parseExpr(recv interface{}, signals []Signal, x string) (err error) {
+func (m *Mod) parseExpr(recv string, signals []Signal, x string) (err error) {
 	var exp ast.Expr
 	exp, err = parser.ParseExpr(x)
 	if err != nil {
 		return
 	}
-	r := reflect.ValueOf(recv)
-	recvN := m.nodes[r]
+	recvN := m.Values[recv]
 	update, deps, err := m.assembleExpr(exp)
 	recvN.Update = update
 	for _, dep := range deps {

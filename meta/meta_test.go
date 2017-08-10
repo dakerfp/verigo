@@ -1,7 +1,6 @@
 package meta
 
 import (
-	"reflect"
 	"testing"
 )
 
@@ -95,11 +94,11 @@ func TestMux2(t *testing.T) {
 
 	Init(mux)
 	meta := mux.Meta()
-	if len(meta.inputs) != 3 {
+	if len(meta.Inputs) != 3 {
 		t.Fail()
 	}
 
-	if len(meta.outputs) != 1 {
+	if len(meta.Outputs) != 1 {
 		t.Fail()
 	}
 }
@@ -144,11 +143,11 @@ func TestMux4(t *testing.T) {
 
 	Init(mux)
 	meta := mux.Meta()
-	if len(meta.inputs) != 6 {
-		t.Fatal(len(meta.inputs))
+	if len(meta.Inputs) != 6 {
+		t.Fatal(len(meta.Inputs))
 	}
 
-	if len(meta.outputs) != 1 {
+	if len(meta.Outputs) != 1 {
 		t.Fatal()
 	}
 }
@@ -171,13 +170,13 @@ type And struct {
 func and() *And {
 	m := &And{}
 	Init(m)
-	m.Bind(&m.O, `A && B`)
+	m.Bind(`O`, `A && B`)
 	return m
 }
 
 func TestAnd(t *testing.T) {
 	a := and()
-	sig := a.binds[0] // XXX
+	sig := a.Values["O"] // XXX
 	v := sig.Update()
 	if v.Bool() {
 		t.Fatal(v)
@@ -201,7 +200,7 @@ type DFF struct {
 func dff() *DFF {
 	m := &DFF{}
 	Init(m)
-	m.Always(&m.Out, `In`, Pos(&m.Clk))
+	m.Always(`Out`, `In`, Pos(&m.Clk))
 	return m
 }
 
