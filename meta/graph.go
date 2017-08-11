@@ -12,6 +12,24 @@ const (
 	Noedge  = 0
 )
 
+func (s Sensivity) String() string {
+	var repr string
+	if s.Block() {
+		repr = "block "
+	}
+	switch s.Edge() {
+	case Noedge:
+		repr += "none"
+	case Posedge:
+		repr += "pos"
+	case Negedge:
+		repr += "neg"
+	case Anyedge:
+		repr += "any"
+	}
+	return repr
+}
+
 func (s Sensivity) Block() bool {
 	return s&Block != 0
 }
@@ -44,13 +62,12 @@ func Connect(from, to *Node, s Sensivity) {
 type Signal struct {
 	Name string
 	Sensivity
-	Update UpdateFunc
 }
 
 func Neg(name string) Signal {
-	return Signal{name, Negedge, nil}
+	return Signal{name, Negedge}
 }
 
 func Pos(name string) Signal {
-	return Signal{name, Posedge, nil}
+	return Signal{name, Posedge}
 }

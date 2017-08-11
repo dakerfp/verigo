@@ -124,7 +124,7 @@ var (
 	ErrInvalidIdentifier = errors.New("invalid identifier")
 )
 
-func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, err error) {
+func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []Signal, err error) {
 	switch e.(type) {
 	case *ast.Ident:
 		identExpr := e.(*ast.Ident)
@@ -132,9 +132,14 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []string, e
 		if !ok {
 			err = ErrInvalidIdentifier
 		}
-		dependsOn = []string{identExpr.Name}
 		update = func() reflect.Value {
 			return n.V // XXX: test if closure closes in n
+		}
+		dependsOn = []Signal{
+			Signal{
+				Name:      identExpr.Name,
+				Sensivity: Anyedge,
+			},
 		}
 	case *ast.BinaryExpr:
 		binaryExpr := e.(*ast.BinaryExpr)
@@ -178,16 +183,12 @@ func (m *Mod) parseExpr(recv string, signals []Signal, x string) (err error) {
 
 	// if there is any explicit signal, use it
 	// otherwise, use deps as if it is combinational
-	if len(signals) > 0 {
-		for _, signal := range signals {
-			n := m.Values[signal.Name]
-			Connect(n, recvN, signal.Sensivity)
-		}
-	} else {
-		for _, dep := range deps {
-			n := m.Values[dep]
-			Connect(n, recvN, Anyedge)
-		}
+	if len(signals) == 0 {
+		signals = deps
+	}
+	for _, signal := range signals {
+		n := m.Values[signal.Name]
+		Connect(n, recvN, signal.Sensivity)
 	}
 	return err
 }
