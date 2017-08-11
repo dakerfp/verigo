@@ -109,12 +109,6 @@ func (m *Mod) Sub(subs ...Module) {
 	m.subs = append(m.subs, subs...)
 }
 
-func (m *Mod) Bind(recv string, x string) {
-	if err := m.parseExpr(recv, nil, x); err != nil {
-		panic(err)
-	}
-}
-
 func (m *Mod) Always(recv string, x string, signals ...Signal) {
 	if err := m.parseExpr(recv, signals, x); err != nil {
 		panic(err)

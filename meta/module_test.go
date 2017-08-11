@@ -124,7 +124,7 @@ type And struct {
 func and() *And {
 	m := &And{}
 	Init(m)
-	m.Bind(`O`, `A && B`)
+	m.Always(`O`, `A && B`)
 	return m
 }
 
