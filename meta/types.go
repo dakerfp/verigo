@@ -13,6 +13,22 @@ const (
 	Z
 )
 
+func Add(a, b interface{}) reflect.Value {
+	if Width(a) < Width(b) {
+		return Add(b, a)
+	}
+
+	va := reflect.ValueOf(a)
+	switch va.Type().Kind() {
+	case reflect.Int64, reflect.Int:
+		vb := reflect.ValueOf(b)
+		return reflect.ValueOf(va.Int() + vb.Int())
+	default:
+		panic(va)
+	}
+	return reflect.ValueOf(nil)
+}
+
 func True(v interface{}) bool {
 	t := reflect.TypeOf(v)
 	switch t.Kind() {

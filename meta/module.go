@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"reflect"
+	"strconv"
 )
 
 type Module interface {
@@ -160,11 +161,30 @@ func (m *Mod) assembleExpr(e ast.Expr) (update UpdateFunc, dependsOn []Signal, e
 				y := updateY()
 				return reflect.ValueOf(x.Bool() && y.Bool())
 			}
+		case token.ADD:
+			update = func() reflect.Value {
+				x := updateX()
+				y := updateY()
+				return Add(x.Interface(), y.Interface())
+			}
 		default:
 			panic(binaryExpr.Op.String())
 		}
 
 		dependsOn = append(depX, depY...)
+	case *ast.BasicLit:
+		// basic lit is constant no need to update dependsOn list
+		basicLitExpr := e.(*ast.BasicLit)
+		switch basicLitExpr.Kind {
+		case token.INT:
+			var i int64
+			i, err = strconv.ParseInt(basicLitExpr.Value, 10, 64)
+			update = func() reflect.Value {
+				return reflect.ValueOf(i)
+			}
+		default:
+			panic(basicLitExpr)
+		}
 	default:
 		panic(reflect.TypeOf(e))
 	}

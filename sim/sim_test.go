@@ -189,3 +189,42 @@ func TestDFF(t *testing.T) { // XXX: create proper test
 		t.Fatal(m.Out)
 	}
 }
+
+type Counter struct {
+	meta.Mod
+
+	Clk   bool "input"
+	Count int  "output"
+}
+
+func counter() *Counter {
+	m := &Counter{}
+	meta.Init(m)
+	m.Always(`Count`, `Count + 1`, meta.Pos("Clk"))
+	return m
+}
+
+func TestCounter(t *testing.T) { // XXX: create proper test
+	c := counter()
+	if c.Count != 0 {
+		t.Fatal(c.Count)
+	}
+
+	mt := c.Meta()
+	clk := mt.Values["Clk"]
+	count := mt.Values["Count"]
+
+	now := time.Now()
+	sim := NewSimulator()
+	go func() {
+		for i := 0; i <= 32; i++ {
+			sim.Set(clk, i%2 == 1, now.Add(time.Duration(i))) // 16 clocks
+		}
+		sim.End()
+	}()
+	sim.Run()
+
+	if c := count.V.Int(); c != 16 {
+		t.Fatal(c)
+	}
+}
