@@ -192,19 +192,3 @@ func (m *Mod) parseExpr(recv string, signals []Signal, x string) (err error) {
 	}
 	return err
 }
-
-// func (m *Mod) Wire(wire ...interface{}) {
-// 	if len(wire) <= 1 {
-// 		panic("wire must have at least 2 elements")
-// 	}
-
-// 	wt0 := reftype(wire[0])
-// 	for _, we := range wire[1:] {
-// 		wt := reftype(we)
-// 		if !wt.ConvertibleTo(wt0) {
-// 			panic(wt)
-// 		}
-// 	}
-
-// 	m.wires = append(m.wires, wire)
-// }
