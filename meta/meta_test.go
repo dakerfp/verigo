@@ -200,7 +200,7 @@ type DFF struct {
 func dff() *DFF {
 	m := &DFF{}
 	Init(m)
-	m.Always(`Out`, `In`, Pos(&m.Clk))
+	m.Always(`Out`, `In`, Pos(`Clk`))
 	return m
 }
 

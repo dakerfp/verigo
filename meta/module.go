@@ -175,9 +175,19 @@ func (m *Mod) parseExpr(recv string, signals []Signal, x string) (err error) {
 	recvN := m.Values[recv]
 	update, deps, err := m.assembleExpr(exp)
 	recvN.Update = update
-	for _, dep := range deps {
-		n := m.Values[dep]
-		Connect(n, recvN, Anyedge) // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
+
+	// if there is any explicit signal, use it
+	// otherwise, use deps as if it is combinational
+	if len(signals) > 0 {
+		for _, signal := range signals {
+			n := m.Values[signal.Name]
+			Connect(n, recvN, signal.Sensivity)
+		}
+	} else {
+		for _, dep := range deps {
+			n := m.Values[dep]
+			Connect(n, recvN, Anyedge)
+		}
 	}
 	return err
 }

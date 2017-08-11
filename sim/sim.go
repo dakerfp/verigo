@@ -132,9 +132,6 @@ func (sim *Simulator) handleNextEvent() {
 	} else {
 		// execute now
 		n := ev.sig.n
-		fmt.Println(n)
-		fmt.Println(ev)
-		fmt.Println(ev.sig)
 		sim.updateNodeValue(n, n.Update())
 	}
 }

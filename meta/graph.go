@@ -42,17 +42,15 @@ func Connect(from, to *Node, s Sensivity) {
 }
 
 type Signal struct {
-	V reflect.Value
+	Name string
 	Sensivity
 	Update UpdateFunc
 }
 
-func Neg(x interface{}) Signal {
-	v := reflect.ValueOf(x)
-	return Signal{v, Negedge, func() reflect.Value { return v }}
+func Neg(name string) Signal {
+	return Signal{name, Negedge, nil}
 }
 
-func Pos(x interface{}) Signal {
-	v := reflect.ValueOf(x)
-	return Signal{v, Posedge, func() reflect.Value { return v }}
+func Pos(name string) Signal {
+	return Signal{name, Posedge, nil}
 }

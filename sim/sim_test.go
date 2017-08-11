@@ -142,3 +142,50 @@ func TestClk(t *testing.T) {
 		t.Fatal(na.V)
 	}
 }
+
+type DFF struct {
+	meta.Mod
+
+	Clk, In bool "input"
+	Out     bool "output"
+}
+
+func dff() *DFF {
+	m := &DFF{}
+	meta.Init(m)
+	m.Always(`Out`, `In`, meta.Pos("Clk"))
+	return m
+}
+
+func TestDFF(t *testing.T) { // XXX: create proper test
+	m := dff()
+	if m.Out {
+		t.Fatal(m.Out)
+	}
+
+	mt := m.Meta()
+	in := mt.Values["In"]
+	clk := mt.Values["Clk"]
+	out := mt.Values["Out"]
+
+	if out.V.Bool() {
+		t.Fatal(m.Out)
+	}
+
+	now := time.Now()
+	sim := NewSimulator()
+	go func() {
+		sim.Set(in, true, now)
+		sim.Set(clk, false, now)
+		sim.Set(clk, true, now.Add(1)) // trigger a <- true
+		// should not trigger a <- false
+		sim.Set(in, false, now.Add(2))
+		sim.Set(clk, false, now.Add(3))
+		sim.End()
+	}()
+	sim.Run()
+
+	if !out.V.Bool() {
+		t.Fatal(m.Out)
+	}
+}
