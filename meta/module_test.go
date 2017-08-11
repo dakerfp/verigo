@@ -22,7 +22,7 @@ type Mux2 struct {
 func mux2() *Mux2 {
 	m := &Mux2{}
 
-	m.Assign(&m.Out, func() bool {
+	m.assign(&m.Out, func() bool {
 		if True(m.Sel) {
 			return m.B
 		}
@@ -144,6 +144,15 @@ func TestAnd(t *testing.T) {
 	}
 }
 
+// module DFF
+// 	(input bit Clk, In,
+// 	 output Out);
+
+// 	always_ff @(posedge Clk)
+//    Out <= In;
+
+// endmodule : And
+
 type DFF struct {
 	Mod
 
@@ -159,8 +168,5 @@ func dff() *DFF {
 }
 
 func TestDFF(t *testing.T) { // XXX: create proper test
-	m := dff()
-	if m.Out {
-		t.Fatal(m.Out)
-	}
+	_ = dff()
 }

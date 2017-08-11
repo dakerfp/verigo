@@ -15,16 +15,8 @@ type Mux2 struct {
 
 func mux2() *Mux2 {
 	m := &Mux2{}
-
 	meta.Init(m)
-
-	m.Assign(&m.Out, func() bool {
-		if meta.True(m.Sel) {
-			return m.B
-		}
-		return m.A
-	})
-	// or  m.Assign(&m.Out, m.output)
+	m.Always(`Out`, `Sel && B || ^Sel && A`)
 
 	return m
 }

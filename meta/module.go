@@ -70,7 +70,7 @@ func (m *Mod) Meta() *Mod {
 	return m
 }
 
-func (m *Mod) Assign(recv interface{}, f interface{}) {
+func (m *Mod) assign(recv interface{}, f interface{}) {
 	t := reflect.TypeOf(f)
 	if t.Kind() != reflect.Func {
 		panic("assign does not gets function")
